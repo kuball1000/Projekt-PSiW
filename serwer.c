@@ -5,22 +5,37 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <ctype.h>
-#include<fcntl.h>
-#include<sys/ipc.h>
-#include<sys/msg.h>
-#include<string.h>
+#include <fcntl.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <string.h>
+
+#define NAME_DL 128
 
 struct msglogin {
-long type;
-char name[128];
-int id;
+    long type;
+    char name[NAME_DL];
+    int id;
 };
 
-int main(int argc, char* argv[]){
+struct msgsubscription {
+    long type;
+    char name[NAME_DL];
+    int id;
+    int id_topic;
+    int type;
+    int leftmessage;
+};
+
+int main(int argc, char* argv[]) {
     int kolejka_logowanie = msgget(0x111, 0600 | IPC_CREAT);
     struct msglogin msg_logowanie;
-    msgrcv(kolejka_logowanie, &msg_logowanie, sizeof(msg_logowanie)-sizeof(long), 1,0);
-    printf("%s\n%d\n", msg_logowanie.name, msg_logowanie.id);
 
+    while(1) {
+
+        msgrcv(kolejka_logowanie, &msg_logowanie, sizeof(msg_logowanie)-sizeof(long), 1, 0);
+        printf("Otrzymano od klienta:\nNazwa: %s\nIdentyfikator: %d\n", msg_logowanie.name, msg_logowanie.id);
+
+    }
     return 0;
 }
