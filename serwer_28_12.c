@@ -12,24 +12,25 @@
 
 #define NAME_DL 128
 #define MAX_USER 10
+#define MAX_TEMAT 20
+
+struct temat {
+    long type;
+    int id_topic;
+    int id_type; //1-zwykla, 0-czasowa
+    int ilejeszcze;//zwykla to wywalone, 0 - czytasz
+};
 
 struct User {
     char name[NAME_DL];
     int id;
+    struct temat subskrypcje[MAX_TEMAT];
 };
 
 struct msglogin {
     long type;
     char name[NAME_DL];
     int id;
-};
-
-struct msgsubscription {
-    long type;
-    char name[NAME_DL];
-    int id;
-    int id_topic;
-    int leftmessage;
 };
 
 struct signal {
@@ -49,6 +50,7 @@ int czyistnieje(struct User users[], int numUsers, int id) {
 
 int main(int argc, char* argv[]) {
     int kolejka_logowanie = msgget(0x111, 0600 | IPC_CREAT);
+    int subskrypcja = msgget(0x113, 0600 | IPC_CREAT);
     struct msglogin msg_logowanie;
     struct User users[MAX_USER];
     struct signal signal;
@@ -70,9 +72,14 @@ int main(int argc, char* argv[]) {
             users[numUsers++] = newUser;
             printf("Otrzymano od klienta:\nNazwa: %s\nIdentyfikator: %d\n", msg_logowanie.name, msg_logowanie.id);
 
+
         } else {
             printf("Za duzo userow, sory.. ;//");
         }
+
+
+
+
 
     }
     return 0;
