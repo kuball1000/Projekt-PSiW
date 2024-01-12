@@ -107,6 +107,10 @@ int main(int argc, char* argv[]) {
         if (odpowiedz.wybor == 1){
             struct temat nowa_subskrypcja;
             nowa_subskrypcja.type = 4;
+            printf("Oto istniejące tematy: \n");
+            msgrcv(subskrypcja, &wiadomosc_serwera, sizeof(wiadomosc_serwera)-sizeof(long), 7, 0);
+            printf("%s\n", wiadomosc_serwera.tekst);
+            strcpy(wiadomosc_serwera.tekst, "");
             printf("Podaj id tematu, ktory chcesz zasubowac: \n");
             //open()
             //while read ...
@@ -123,6 +127,9 @@ int main(int argc, char* argv[]) {
             konto.type = 5;
             msgsnd(subskrypcja, &konto, sizeof(konto)-sizeof(long), 0);
             msgsnd(subskrypcja, &nowa_subskrypcja, sizeof(nowa_subskrypcja)-sizeof(long), 0);
+            msgrcv(subskrypcja, &wiadomosc_serwera, sizeof(wiadomosc_serwera) - sizeof(long), 7, 0);
+            printf("%s\n", wiadomosc_serwera.tekst);
+            strcpy(wiadomosc_serwera.tekst, "");
 
         }
 

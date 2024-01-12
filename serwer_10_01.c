@@ -59,6 +59,25 @@ int czyistnieje(struct User users[], int numUsers, int id) {
     return 1;
 }
 
+char* intArrayToString(int *array, int size) {
+
+
+    int maxLength = size * (11 + 1); // 11 for int, 1 for newlin
+    char *result = malloc(maxLength);
+
+    result[0] = '\0'; // Start with an empty string
+
+    for (int i = 0; i < size; i++) {
+        char buffer[12]; // Temporary buffer
+        sprintf(buffer, "%d\t", array[i]); // Convert int to string with newline
+        strcat(result, buffer); // Concatenate to the result
+    }
+
+    return result;
+}
+
+
+
 int main(int argc, char *argv[]) {
     int kolejka_logowanie = msgget(0x111, 0600 | IPC_CREAT);
     int subskrypcja = msgget(0x113, 0600 | IPC_CREAT);
@@ -109,21 +128,42 @@ int main(int argc, char *argv[]) {
         if (odpowiedz.wybor == 1) { //subskrypcja dnego tematu
             struct temat nowa_subskrypcja;
             struct User konto_sub;
+            char *string_tematy = intArrayToString(tematy, numTemats);
+            strcpy(nowa_wiadomosc.tekst, string_tematy);
+            printf("%s", nowa_wiadomosc.tekst);
+            nowa_wiadomosc.type = 7;
+            msgsnd(subskrypcja, &nowa_wiadomosc, sizeof(nowa_wiadomosc) - sizeof(long), 0);
             msgrcv(subskrypcja, &konto_sub, sizeof(konto_sub) - sizeof(long), 5, 0);
             msgrcv(subskrypcja, &nowa_subskrypcja, sizeof(nowa_subskrypcja) - sizeof(long), 4, 0);
-            printf("ID topic: %d,\n ID typ: %d,\n, Ile wiadomosci: %d,\n", nowa_subskrypcja.id_topic,
-                   nowa_subskrypcja.topic_type, nowa_subskrypcja.ilejeszcze);
-            printf("ID SUB %d\n", konto_sub.id);
 
-            for (int i = 0; i < numUsers; ++i) {
-                if (konto_sub.id == users[i].id) {
+            for (int i=0; i < numTemats; i++) {
+                printf("%d %d\n", nowa_subskrypcja.id_topic, tematy[i]);
+                if (nowa_subskrypcja.id_topic == tematy[i]) {
+                    printf("ID topic: %d,\n ID typ: %d,\n, Ile wiadomosci: %d,\n", nowa_subskrypcja.id_topic,
+                    nowa_subskrypcja.topic_type, nowa_subskrypcja.ilejeszcze);
+                    printf("ID SUB %d\n", konto_sub.id);
+
+                    for (int i = 0; i < numUsers; ++i) {
+                        if (konto_sub.id == users[i].id) {
                     //printf("ID %d\n", users[i].id);
-                    users[i].subskrypcje[users[i].liczbasub] = nowa_subskrypcja;
-                    users[i].liczbasub++;
+                            users[i].subskrypcje[users[i].liczbasub] = nowa_subskrypcja;
+                            users[i].liczbasub++;
                     //printf("Liczba sub %d\n", users[i].liczbasub);
                     //printf("%d\n", users[i].subskrypcje[users[i].liczbasub - 1].id_topic);
+                            strcpy(nowa_wiadomosc.tekst, "Udało się zasubskrybować");
+
+
+                }
+            } break;
+                } else {
+                    strcpy(nowa_wiadomosc.tekst, "Nie udało się zasubskrybować - podany temat nie istnieje ;(");
+
+
                 }
             }
+            msgsnd(subskrypcja, &nowa_wiadomosc, sizeof(nowa_wiadomosc)-sizeof(long), 0);
+
+
         }
     if (odpowiedz.wybor == 2) { //tworzenie tematu
         struct temat nowy_temat;
