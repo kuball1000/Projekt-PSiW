@@ -15,6 +15,7 @@
 #define NAME_DL 128
 #define MAX_USER 10
 #define MAX_TEMAT 20
+#define MAX_ODBIERANE 3
 
 struct temat {
     long type;
@@ -28,6 +29,7 @@ struct User {
     char name[NAME_DL];
     int id;
     struct temat subskrypcje[MAX_TEMAT];
+
 };
 
 struct msglogin {
@@ -64,6 +66,7 @@ int main(int argc, char* argv[]) {
     int subskrypcja = msgget(0x113, 0600 | IPC_CREAT);
     int odpowiedzi = msgget(0x114, 0600 | IPC_CREAT);
     int wszyscy = msgget(0x115, 0600 | IPC_CREAT);
+    int do_banow = msgget(0x117, 0600 | IPC_CREAT);
     int wysylanie_wiadomosci = msgget(0x116, 0600 | IPC_CREAT);
     struct msglogin moje_logowanie;
     struct signal signal;
@@ -101,23 +104,23 @@ int main(int argc, char* argv[]) {
         struct signal nowa_wiadomosc_serwera;
         struct wiadomosc_tematyczna wiadomosc_wysylana_od_serwera;
 
+        strcpy(wiadomosc_serwera.tekst, "\n");
+        strcpy(wiadomosc_wysylana_od_serwera.tekst, "\n");
 
         msgrcv(wszyscy, &wiadomosc_serwera, sizeof(wiadomosc_serwera) - sizeof(long), konto.id, IPC_NOWAIT);
         printf("%s\n", wiadomosc_serwera.tekst);
         strcpy(wiadomosc_serwera.tekst, "\n");
 
 
-        //for(int i=0; i < 3; i++) {
-            msgrcv(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), konto.id, IPC_NOWAIT);
-           // if(errno == ENOMSG) {
-            //    break;
-            //}
+        for(int i=0; i < MAX_ODBIERANE; i++) {
+            if (msgrcv(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), konto.id, IPC_NOWAIT) != -1) {
             printf("Otrzymałeś wiadomosc z tematu: %d\n", wiadomosc_wysylana_od_serwera.id_subskrypcji);
             printf("%s\n", wiadomosc_wysylana_od_serwera.tekst);
             strcpy(wiadomosc_wysylana_od_serwera.tekst, "\n");
-        //}
+        }
+        }
 
-        printf("Wpisz 1-subskrypcje tematu; 2-tworzenie tematu; 3-wysylanie wiadomosc; 9-odswiez\n");
+        printf("Wpisz 1-subskrypcje tematu; 2-tworzenie tematu; 3-wysylanie wiadomosc; 4-odbieranie asynchroniczne; 5-zbanuj dziada; 9-odswiez\n");
 
         scanf("%d", &opcja);
         odpowiedz.wybor = opcja;
@@ -188,9 +191,33 @@ int main(int argc, char* argv[]) {
         msgsnd(wysylanie_wiadomosci, &wysylana_wiadomosc, sizeof(wysylana_wiadomosc) - sizeof(long), 0);
         strcpy(wysylana_wiadomosc.tekst, "");
 
+    }
 
+    if (odpowiedz.wybor == 4) {
+        while(1) {
+            if (msgrcv(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), konto.id, IPC_NOWAIT) != -1) {
+                printf("Otrzymałeś wiadomosc z tematu: %d\n", wiadomosc_wysylana_od_serwera.id_subskrypcji);
+                printf("%s\n", wiadomosc_wysylana_od_serwera.tekst);
+                strcpy(wiadomosc_wysylana_od_serwera.tekst, "\n");
+            } else {
+                break;
+            }
+        }
+    }
 
-
+    if (odpowiedz.wybor == 5) {
+        struct wiadomosc wiadomosc_banowana;
+        struct signal ban;
+        ban.type = 5;
+        ban.odp = konto.id; //Przesłanie id użytkownika
+        msgsnd(do_banow, &ban, sizeof(ban) - sizeof(long), 0);
+        printf("Oto wszyscy użytkownicy: \n");
+        msgrcv(do_banow, &wiadomosc_banowana, sizeof(wiadomosc_banowana) - sizeof(long), 6, 0);
+        printf("%s\n", wiadomosc_banowana.tekst);
+        printf("Podaj id użytkownika, którego chcesz zbanować: \n");
+        scanf("%d", &ban.odp);
+        ban.type = 6;
+        msgsnd(do_banow, &ban, sizeof(ban) - sizeof(long), 0);
 
     }
 

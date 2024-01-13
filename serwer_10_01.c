@@ -27,6 +27,8 @@ struct User {
     int id;
     struct temat subskrypcje[MAX_TEMAT];
     int liczbasub;
+    int zbanowani[MAX_USER];
+    int liczbazbnowanych;
 };
 
 struct msglogin {
@@ -92,6 +94,7 @@ int main(int argc, char *argv[]) {
     int odpowiedzi = msgget(0x114, 0600 | IPC_CREAT);
     int wszyscy = msgget(0x115, 0600 | IPC_CREAT);
     int wysylanie_wiadomosci = msgget(0x116, 0600 | IPC_CREAT);
+    int do_banow = msgget(0x117, 0600 | IPC_CREAT);
     struct msglogin msg_logowanie;
     struct User users[MAX_USER];
     struct signal signal;
@@ -126,6 +129,7 @@ int main(int argc, char *argv[]) {
                 strcpy(newUser.name, msg_logowanie.name);
                 newUser.id = msg_logowanie.id;
                 newUser.liczbasub = 0;
+                newUser.liczbazbnowanych = 0;
                 users[numUsers++] = newUser;
                 printf("Otrzymano od klienta:\nNazwa: %s\nIdentyfikator: %d\n", msg_logowanie.name, msg_logowanie.id);
 
@@ -235,19 +239,69 @@ int main(int argc, char *argv[]) {
             for(int i =0; i < numUsers; i++) {
                 for(int j=0; j < users[i].liczbasub; j++) {
                     if (wysylana_wiadomosc.id_subskrypcji == users[i].subskrypcje[j].id_topic){
+                        int czy_zbanowany = 0;
                         strcpy(wiadomosc_wysylana_od_serwera.tekst, wysylana_wiadomosc.tekst);
                         wiadomosc_wysylana_od_serwera.id_subskrypcji = wysylana_wiadomosc.id_subskrypcji;
                         wiadomosc_wysylana_od_serwera.id_wysylanego = wysylana_wiadomosc.id_wysylanego;
                         wiadomosc_wysylana_od_serwera.type = users[i].id;
-                        msgsnd(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
+                        for(int k=0; k < users[i].liczbazbnowanych; k++) {
+                            if (users[i].zbanowani[k] == wiadomosc_wysylana_od_serwera.id_wysylanego) {
+                                czy_zbanowany = 1;
+                            }
+                        }
 
+                        if (czy_zbanowany == 0) {
+                            if (users[i].subskrypcje[j].topic_type == 1) {
+                                msgsnd(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
+                            } else if(users[i].subskrypcje[j].ilejeszcze > 0) {
+                                msgsnd(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
+                                users[i].subskrypcje[j].ilejeszcze--;
+                            }
                     }
 
-                }
+                    }//dlugi if
+                }//od fora j
+            }//od fora i
+    }
 
+
+    if (odpowiedz.wybor == 5) {
+        struct signal ban;
+        struct wiadomosc wiadomosc_banowana;
+        msgrcv(do_banow, &ban, sizeof(ban) - sizeof(long), 5, 0);
+        int id_banujacego = ban.odp; //ziomek ktory banuje
+        char string[1024];
+        for (int i = 0; i < numUsers; i++) {
+            if (id_banujacego != users[i].id) {
+                char nazwa[1028];
+
+                strcpy(nazwa, users[i].name);
+                int id_zioma = users[i].id;
+                char id_string[12];
+                sprintf(id_string, "%d", id_zioma);
+                strcat(nazwa, " ");
+                strcat(nazwa, id_string);
+                strcat(nazwa, "\t");
+                strcat(string, nazwa);
+                //strcpy("", nazwa);
 
             }
 
+
+        }
+        strcpy(wiadomosc_banowana.tekst, string);
+        wiadomosc_banowana.type = 6;
+        msgsnd(do_banow, &wiadomosc_banowana, sizeof(wiadomosc_banowana) - sizeof(long), 0);
+        strcpy("", string);
+        msgrcv(do_banow, &ban, sizeof(ban) - sizeof(long), 6, 0);
+        int id_zbanowanego = ban.odp;
+        for(int i=0; i < numUsers; i++) {
+            if (users[i].id == id_banujacego) {
+                users[i].zbanowani[users[i].liczbazbnowanych] = id_zbanowanego;
+                users[i].liczbazbnowanych++;
+            }
+
+        }
 
 
     }
