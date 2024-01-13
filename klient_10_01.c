@@ -51,12 +51,20 @@ struct wiadomosc {
     char tekst[1024];
 };
 
+struct wiadomosc_tematyczna {
+    long type;
+    char tekst[1024];
+    int id_wysylanego;
+    int id_subskrypcji;
+};
+
 
 int main(int argc, char* argv[]) {
     int logowanie = msgget(0x111, 0600 | IPC_CREAT);
     int subskrypcja = msgget(0x113, 0600 | IPC_CREAT);
     int odpowiedzi = msgget(0x114, 0600 | IPC_CREAT);
     int wszyscy = msgget(0x115, 0600 | IPC_CREAT);
+    int wysylanie_wiadomosci = msgget(0x116, 0600 | IPC_CREAT);
     struct msglogin moje_logowanie;
     struct signal signal;
     struct User konto;
@@ -91,12 +99,25 @@ int main(int argc, char* argv[]) {
         int opcja;
         struct wiadomosc wiadomosc_serwera;
         struct signal nowa_wiadomosc_serwera;
+        struct wiadomosc_tematyczna wiadomosc_wysylana_od_serwera;
+
 
         msgrcv(wszyscy, &wiadomosc_serwera, sizeof(wiadomosc_serwera) - sizeof(long), konto.id, IPC_NOWAIT);
         printf("%s\n", wiadomosc_serwera.tekst);
         strcpy(wiadomosc_serwera.tekst, "\n");
 
-        printf("Wpisz 1-subskrypcje tematu; 2-tworzenie tematu; 9-odswiez\n");
+
+        //for(int i=0; i < 3; i++) {
+            msgrcv(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), konto.id, IPC_NOWAIT);
+           // if(errno == ENOMSG) {
+            //    break;
+            //}
+            printf("Otrzymałeś wiadomosc z tematu: %d\n", wiadomosc_wysylana_od_serwera.id_subskrypcji);
+            printf("%s\n", wiadomosc_wysylana_od_serwera.tekst);
+            strcpy(wiadomosc_wysylana_od_serwera.tekst, "\n");
+        //}
+
+        printf("Wpisz 1-subskrypcje tematu; 2-tworzenie tematu; 3-wysylanie wiadomosc; 9-odswiez\n");
 
         scanf("%d", &opcja);
         odpowiedz.wybor = opcja;
@@ -122,7 +143,7 @@ int main(int argc, char* argv[]) {
                 printf("Ile chcesz wiadomości: \n");
                 scanf("%d", &nowa_subskrypcja.ilejeszcze);
             } else {
-                nowa_subskrypcja.ilejeszcze = 0;
+                nowa_subskrypcja.ilejeszcze = 1000000;
             }
             konto.type = 5;
             msgsnd(subskrypcja, &konto, sizeof(konto)-sizeof(long), 0);
@@ -149,6 +170,30 @@ int main(int argc, char* argv[]) {
 
 
     }
+
+    if (odpowiedz.wybor == 3) {
+        struct wiadomosc_tematyczna wysylana_wiadomosc;
+        printf("Oto istniejące tematy: \n");
+        msgrcv(wysylanie_wiadomosci, &wiadomosc_serwera, sizeof(wiadomosc_serwera)-sizeof(long), 7, 0);
+        printf("%s\n", wiadomosc_serwera.tekst);
+        strcpy(wiadomosc_serwera.tekst, "");
+        printf("Na jaki temat chcesz wyslać wiadomość? \n");
+        //int id_tematu;
+        scanf("%d", &wysylana_wiadomosc.id_subskrypcji);
+        //wysylana_wiadomosc.type = id_tematu;
+        printf("Jaką wiadomość chcesz wysłać? \n");
+        scanf("%s", wysylana_wiadomosc.tekst);
+        wysylana_wiadomosc.type = 9;
+        wysylana_wiadomosc.id_wysylanego = konto.id;
+        msgsnd(wysylanie_wiadomosci, &wysylana_wiadomosc, sizeof(wysylana_wiadomosc) - sizeof(long), 0);
+        strcpy(wysylana_wiadomosc.tekst, "");
+
+
+
+
+
+    }
+
     if (odpowiedz.wybor == 9) {
         continue;
 

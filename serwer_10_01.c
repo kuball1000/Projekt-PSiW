@@ -18,7 +18,7 @@ struct temat {
     long type;
     int id_topic;
     int topic_type; // 1-zwykla, 0-czasowa
-    int ilejeszcze; // zwykla to wywalone, 0 - czytasz
+    int ilejeszcze; // zwykla to wywalone, 1000000 - czytasz
 };
 
 struct User {
@@ -49,6 +49,14 @@ struct wiadomosc {
     long type;
     char tekst[1024];
 };
+
+struct wiadomosc_tematyczna {
+    long type;
+    char tekst[1024];
+    int id_wysylanego;
+    int id_subskrypcji;
+};
+
 
 int czyistnieje(struct User users[], int numUsers, int id) {
     for (int i = 0; i < numUsers; ++i) {
@@ -83,6 +91,7 @@ int main(int argc, char *argv[]) {
     int subskrypcja = msgget(0x113, 0600 | IPC_CREAT);
     int odpowiedzi = msgget(0x114, 0600 | IPC_CREAT);
     int wszyscy = msgget(0x115, 0600 | IPC_CREAT);
+    int wysylanie_wiadomosci = msgget(0x116, 0600 | IPC_CREAT);
     struct msglogin msg_logowanie;
     struct User users[MAX_USER];
     struct signal signal;
@@ -206,6 +215,38 @@ int main(int argc, char *argv[]) {
                 msgsnd(wszyscy, &nowa_wiadomosc, sizeof(nowa_wiadomosc) - sizeof(long), 0);
             }
         }
+
+
+
+    }
+
+        if (odpowiedz.wybor == 3) {
+            struct wiadomosc_tematyczna wiadomosc_wysylana_od_serwera;
+            struct wiadomosc_tematyczna wysylana_wiadomosc;
+            char *string_tematy = intArrayToString(tematy, numTemats);
+            strcpy(nowa_wiadomosc.tekst, string_tematy);
+            printf("%s\n", nowa_wiadomosc.tekst);
+            nowa_wiadomosc.type = 7;
+            msgsnd(wysylanie_wiadomosci, &nowa_wiadomosc, sizeof(nowa_wiadomosc) - sizeof(long), 0);
+            msgrcv(wysylanie_wiadomosci, &wysylana_wiadomosc, sizeof(wysylana_wiadomosc) - sizeof(long), 9, 0);
+
+
+            printf("%s\n", wysylana_wiadomosc.tekst);
+            for(int i =0; i < numUsers; i++) {
+                for(int j=0; j < users[i].liczbasub; j++) {
+                    if (wysylana_wiadomosc.id_subskrypcji == users[i].subskrypcje[j].id_topic){
+                        strcpy(wiadomosc_wysylana_od_serwera.tekst, wysylana_wiadomosc.tekst);
+                        wiadomosc_wysylana_od_serwera.id_subskrypcji = wysylana_wiadomosc.id_subskrypcji;
+                        wiadomosc_wysylana_od_serwera.id_wysylanego = wysylana_wiadomosc.id_wysylanego;
+                        wiadomosc_wysylana_od_serwera.type = users[i].id;
+                        msgsnd(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
+
+                    }
+
+                }
+
+
+            }
 
 
 
