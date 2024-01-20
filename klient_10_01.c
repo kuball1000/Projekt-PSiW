@@ -43,11 +43,6 @@ struct signal {
     int odp; // 1-true; 0-false
 };
 
-struct odpowiedz {
-    long type;
-    int wybor; //1-subskrypcja 2-wyslanie wiadomosci, 3-
-};
-
 struct wiadomosc {
     long type;
     char tekst[1024];
@@ -72,11 +67,11 @@ int main(int argc, char* argv[]) {
     struct msglogin moje_logowanie;
     struct signal signal;
     struct User konto;
-    struct odpowiedz odpowiedz;
+    struct signal odpowiedz;
     struct signal nadawca;
 
     odpowiedz.type = 1;
-    odpowiedz.wybor = 0;
+    odpowiedz.odp = 0;
     msgsnd(odpowiedzi, &odpowiedz, sizeof(odpowiedz)-sizeof(long), 0);
 
     printf("Podaj swoją nazwę: \n");
@@ -131,12 +126,12 @@ int main(int argc, char* argv[]) {
         printf("Wpisz 1-subskrypcje tematu; 2-tworzenie tematu; 3-wysylanie wiadomosc; 4-odbieranie asynchroniczne; 5-zbanuj dziada; 9-odswiez\n");
 
         scanf("%d", &opcja);
-        odpowiedz.wybor = opcja;
+        odpowiedz.odp = opcja;
         odpowiedz.type = 1;
         msgsnd(odpowiedzi, &odpowiedz, sizeof(odpowiedz)-sizeof(long), 0);
 
 
-        if (odpowiedz.wybor == 1) {
+        if (odpowiedz.odp == 1) {
             struct temat nowa_subskrypcja;
             nowa_subskrypcja.type = 1;
             msgsnd(subskrypcja, &nadawca, sizeof(nadawca) - sizeof(long), 0);
@@ -166,7 +161,7 @@ int main(int argc, char* argv[]) {
 
         }
 
-    if (odpowiedz.wybor == 2) {
+    if (odpowiedz.odp == 2) {
         struct temat nowy_temat;
         struct wiadomosc nowa_wiadomosc;
         nowy_temat.type = 1;
@@ -180,7 +175,7 @@ int main(int argc, char* argv[]) {
         printf("%s\n", nowa_wiadomosc.tekst);
     }
 
-    if (odpowiedz.wybor == 3) {
+    if (odpowiedz.odp == 3) {
         struct wiadomosc_tematyczna wysylana_wiadomosc;
         struct wiadomosc sukces_wyslania;
         msgsnd(wysylanie_wiadomosci, &nadawca, sizeof(nadawca) - sizeof(long), 0);
@@ -207,7 +202,7 @@ int main(int argc, char* argv[]) {
 
     }
 
-    if (odpowiedz.wybor == 4) {
+    if (odpowiedz.odp == 4) {
         int liczba_odebranych = 0;
         struct wiadomosc_tematyczna wiadomosci_odebrane[128];
         while(1) {
@@ -231,7 +226,7 @@ int main(int argc, char* argv[]) {
 
     }
 
-    if (odpowiedz.wybor == 5) {
+    if (odpowiedz.odp == 5) {
         struct wiadomosc wiadomosc_banowana;
         struct signal ban;
         ban.type = 1;
@@ -247,7 +242,7 @@ int main(int argc, char* argv[]) {
 
     }
 
-    if (odpowiedz.wybor == 9) {
+    if (odpowiedz.odp == 9) {
         continue;
 
     }

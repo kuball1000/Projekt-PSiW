@@ -42,10 +42,6 @@ struct signal {
     int odp; // 1-true; 0-false
 };
 
-struct odpowiedz {
-    long type;
-    int wybor; // 1-subskrypcja 2-wyslanie wiadomosci, 3-
-};
 
 struct wiadomosc {
     long type;
@@ -71,15 +67,15 @@ int czyistnieje(struct User users[], int numUsers, int id) {
 }
 
 char* intArrayToString(int *array, int size) {
-    int maxLength = size * (11 + 1); // 11 for int, 1 for newlin
+    int maxLength = size * (11 + 1);
     char *result = malloc(maxLength);
 
-    result[0] = '\0'; // Start with an empty string
+    result[0] = '\0';
 
     for (int i = 0; i < size; i++) {
-        char buffer[12]=""; // Temporary buffer
-        sprintf(buffer, "%d\t", array[i]); // Convert int to string with newline
-        strcat(result, buffer); // Concatenate to the result
+        char buffer[12]="";
+        sprintf(buffer, "%d\t", array[i]);
+        strcat(result, buffer);
     }
 
     return result;
@@ -97,7 +93,7 @@ int main(int argc, char *argv[]) {
     struct msglogin msg_logowanie;
     struct User users[MAX_USER];
     struct signal signal;
-    struct odpowiedz odpowiedz;
+    struct signal odpowiedz;
     struct signal wyslij_sygnal;
     struct signal nadawca;
     int numUsers = 0;
@@ -111,7 +107,7 @@ int main(int argc, char *argv[]) {
         strcpy(nowa_wiadomosc.tekst, "\n");
         msgrcv(odpowiedzi, &odpowiedz, sizeof(odpowiedz) - sizeof(long), 1, 0);
         //printf("%d\n", odpowiedz.wybor);
-        if (odpowiedz.wybor == 0) {
+        if (odpowiedz.odp == 0) {
             msgrcv(kolejka_logowanie, &msg_logowanie, sizeof(msg_logowanie) - sizeof(long), 1, 0);
             if (czyistnieje(users, numUsers, msg_logowanie.id) == 0) {
                 signal.type = msg_logowanie.id;
@@ -138,7 +134,7 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        if (odpowiedz.wybor == 1) { //subskrypcja dnego tematu
+        if (odpowiedz.odp == 1) { //subskrypcja dnego tematu
             struct temat nowa_subskrypcja;
             struct User konto_sub;
             msgrcv(subskrypcja, &nadawca, sizeof(nadawca) - sizeof(long), 1, 0);
@@ -179,7 +175,7 @@ int main(int argc, char *argv[]) {
 
 
         }
-    if (odpowiedz.wybor == 2) { //tworzenie tematu
+    if (odpowiedz.odp == 2) { //tworzenie tematu
         struct temat nowy_temat;
 
         nowa_wiadomosc.type = nadawca.odp;
@@ -217,7 +213,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-        if (odpowiedz.wybor == 3) {
+        if (odpowiedz.odp == 3) {
             struct wiadomosc_tematyczna wiadomosc_wysylana_od_serwera;
             struct wiadomosc_tematyczna wysylana_wiadomosc;
             struct wiadomosc sukces_wyslania;
@@ -287,7 +283,7 @@ int main(int argc, char *argv[]) {
 
 
 
-    if (odpowiedz.wybor == 5) {
+    if (odpowiedz.odp == 5) {
         struct signal ban;
         struct wiadomosc wiadomosc_banowana;
         msgrcv(do_banow, &ban, sizeof(ban) - sizeof(long), 1, 0);
