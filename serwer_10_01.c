@@ -17,8 +17,8 @@
 struct temat {
     long type;
     int id_topic;
-    int topic_type; // 1-zwykla, 0-czasowa
-    int ilejeszcze; // zwykla to wywalone, 1000000 - czytasz
+    int topic_type; // 1-zwykla, 0-czasowa, 2-tworzysz
+    int ilejeszcze; // zwykla to 1000000, liczba - czytasz
 };
 
 struct User {
@@ -57,6 +57,7 @@ struct wiadomosc_tematyczna {
     char tekst[1024];
     int id_wysylanego;
     int id_subskrypcji;
+    int priorytet; //1-10
 };
 
 
@@ -70,15 +71,13 @@ int czyistnieje(struct User users[], int numUsers, int id) {
 }
 
 char* intArrayToString(int *array, int size) {
-
-
     int maxLength = size * (11 + 1); // 11 for int, 1 for newlin
     char *result = malloc(maxLength);
 
     result[0] = '\0'; // Start with an empty string
 
     for (int i = 0; i < size; i++) {
-        char buffer[12]; // Temporary buffer
+        char buffer[12]=""; // Temporary buffer
         sprintf(buffer, "%d\t", array[i]); // Convert int to string with newline
         strcat(result, buffer); // Concatenate to the result
     }
@@ -100,6 +99,7 @@ int main(int argc, char *argv[]) {
     struct signal signal;
     struct odpowiedz odpowiedz;
     struct signal wyslij_sygnal;
+    struct signal nadawca;
     int numUsers = 0;
     int tematy[MAX_TEMAT];
     int numTemats = 0;
@@ -109,12 +109,12 @@ int main(int argc, char *argv[]) {
     while (1) {
         wyslij_sygnal.odp = 0;
         strcpy(nowa_wiadomosc.tekst, "\n");
-        msgrcv(odpowiedzi, &odpowiedz, sizeof(odpowiedz) - sizeof(long), 3, 0);
+        msgrcv(odpowiedzi, &odpowiedz, sizeof(odpowiedz) - sizeof(long), 1, 0);
         //printf("%d\n", odpowiedz.wybor);
         if (odpowiedz.wybor == 0) {
             msgrcv(kolejka_logowanie, &msg_logowanie, sizeof(msg_logowanie) - sizeof(long), 1, 0);
             if (czyistnieje(users, numUsers, msg_logowanie.id) == 0) {
-                signal.type = 2;
+                signal.type = msg_logowanie.id;
                 signal.odp = 0;
                 msgsnd(kolejka_logowanie, &signal, sizeof(signal) - sizeof(long), 0);
                 continue;
@@ -141,13 +141,14 @@ int main(int argc, char *argv[]) {
         if (odpowiedz.wybor == 1) { //subskrypcja dnego tematu
             struct temat nowa_subskrypcja;
             struct User konto_sub;
+            msgrcv(subskrypcja, &nadawca, sizeof(nadawca) - sizeof(long), 1, 0);
             char *string_tematy = intArrayToString(tematy, numTemats);
             strcpy(nowa_wiadomosc.tekst, string_tematy);
             printf("%s", nowa_wiadomosc.tekst);
-            nowa_wiadomosc.type = 7;
+            nowa_wiadomosc.type = nadawca.odp;
             msgsnd(subskrypcja, &nowa_wiadomosc, sizeof(nowa_wiadomosc) - sizeof(long), 0);
-            msgrcv(subskrypcja, &konto_sub, sizeof(konto_sub) - sizeof(long), 5, 0);
-            msgrcv(subskrypcja, &nowa_subskrypcja, sizeof(nowa_subskrypcja) - sizeof(long), 4, 0);
+            msgrcv(subskrypcja, &konto_sub, sizeof(konto_sub) - sizeof(long), 1, 0);
+            msgrcv(subskrypcja, &nowa_subskrypcja, sizeof(nowa_subskrypcja) - sizeof(long), 1, 0);
 
             for (int i=0; i < numTemats; i++) {
                 printf("%d %d\n", nowa_subskrypcja.id_topic, tematy[i]);
@@ -181,7 +182,7 @@ int main(int argc, char *argv[]) {
     if (odpowiedz.wybor == 2) { //tworzenie tematu
         struct temat nowy_temat;
 
-        nowa_wiadomosc.type = 3;
+        nowa_wiadomosc.type = nadawca.odp;
         int istnieje = 0;
         msgrcv(subskrypcja, &nowy_temat, sizeof(nowy_temat) - sizeof(long), 1, 0);
         printf("%d \n", nowy_temat.id_topic);
@@ -201,48 +202,56 @@ int main(int argc, char *argv[]) {
             tematy[numTemats] = nowy_temat.id_topic;
             numTemats++;
 
-            char stringowyTemat[10];
+            char stringowyTemat[10]="";
             sprintf(stringowyTemat, "%d",nowy_temat.id_topic);
             char x[1024] = "Zostal stworzony nowy temat o id: ";
             strcat(x, stringowyTemat);
             strcpy(nowa_wiadomosc.tekst, x);
             printf("%s\n", nowa_wiadomosc.tekst);
-            //
 
-            nowa_wiadomosc.type = 9;
-
-            //wyslij_sygnal.type = 8;
-            //wyslij_sygnal.odp = 1;
-            //msgsnd(wszyscy, &wyslij_sygnal, sizeof(wyslij_sygnal) - sizeof(long), 0);
             for(int i = 0; i < numUsers; i++) {
                 nowa_wiadomosc.type = users[i].id;
                 msgsnd(wszyscy, &nowa_wiadomosc, sizeof(nowa_wiadomosc) - sizeof(long), 0);
             }
+            strcpy(nowa_wiadomosc.tekst, "");
         }
-
-
-
     }
 
         if (odpowiedz.wybor == 3) {
             struct wiadomosc_tematyczna wiadomosc_wysylana_od_serwera;
             struct wiadomosc_tematyczna wysylana_wiadomosc;
+            struct wiadomosc sukces_wyslania;
             char *string_tematy = intArrayToString(tematy, numTemats);
+            msgrcv(wysylanie_wiadomosci, &nadawca, sizeof(nadawca) - sizeof(long), 1, 0);
             strcpy(nowa_wiadomosc.tekst, string_tematy);
             printf("%s\n", nowa_wiadomosc.tekst);
-            nowa_wiadomosc.type = 7;
+            nowa_wiadomosc.type = nadawca.odp;
             msgsnd(wysylanie_wiadomosci, &nowa_wiadomosc, sizeof(nowa_wiadomosc) - sizeof(long), 0);
-            msgrcv(wysylanie_wiadomosci, &wysylana_wiadomosc, sizeof(wysylana_wiadomosc) - sizeof(long), 9, 0);
+            msgrcv(wysylanie_wiadomosci, &wysylana_wiadomosc, sizeof(wysylana_wiadomosc) - sizeof(long), 1, 0);
+            int temat_istnieje = 0;
+            int dobry_priorytet = 0;
 
 
             printf("%s\n", wysylana_wiadomosc.tekst);
-            for(int i =0; i < numUsers; i++) {
+            for(int a = 0; a < numTemats; a++) {
+                if(wysylana_wiadomosc.id_subskrypcji == tematy[a]) {
+                    temat_istnieje = 1;
+                    if(wysylana_wiadomosc.priorytet > 0 && wysylana_wiadomosc.priorytet < 11) {
+                        dobry_priorytet = 1;
+                    }
+                }
+            }
+
+            if (temat_istnieje && dobry_priorytet) {
+                strcpy(sukces_wyslania.tekst, "Wiadomosc została wysłana");
+            for(int i = 0; i < numUsers; i++) {
                 for(int j=0; j < users[i].liczbasub; j++) {
-                    if (wysylana_wiadomosc.id_subskrypcji == users[i].subskrypcje[j].id_topic){
+                    if (wysylana_wiadomosc.id_subskrypcji == users[i].subskrypcje[j].id_topic && wysylana_wiadomosc.id_wysylanego != users[i].id) {
                         int czy_zbanowany = 0;
                         strcpy(wiadomosc_wysylana_od_serwera.tekst, wysylana_wiadomosc.tekst);
                         wiadomosc_wysylana_od_serwera.id_subskrypcji = wysylana_wiadomosc.id_subskrypcji;
                         wiadomosc_wysylana_od_serwera.id_wysylanego = wysylana_wiadomosc.id_wysylanego;
+                        wiadomosc_wysylana_od_serwera.priorytet = wysylana_wiadomosc.priorytet;
                         wiadomosc_wysylana_od_serwera.type = users[i].id;
                         for(int k=0; k < users[i].liczbazbnowanych; k++) {
                             if (users[i].zbanowani[k] == wiadomosc_wysylana_od_serwera.id_wysylanego) {
@@ -252,32 +261,45 @@ int main(int argc, char *argv[]) {
 
                         if (czy_zbanowany == 0) {
                             if (users[i].subskrypcje[j].topic_type == 1) {
-                                msgsnd(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
-                            } else if(users[i].subskrypcje[j].ilejeszcze > 0) {
-                                msgsnd(wysylanie_wiadomosci, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
+                                msgsnd(wszyscy, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
+                            } else if(users[i].subskrypcje[j].topic_type == 0) {
+                                if(users[i].subskrypcje[j].ilejeszcze > 0) {
+                                msgsnd(wszyscy, &wiadomosc_wysylana_od_serwera, sizeof(wiadomosc_wysylana_od_serwera) - sizeof(long), 0);
                                 users[i].subskrypcje[j].ilejeszcze--;
                             }
+                            }
                     }
+                    strcpy(sukces_wyslania.tekst, "Wiadomosc została wysłana");
 
+                    }
+                }
                     }//dlugi if
-                }//od fora j
-            }//od fora i
+
+
+                } else if (temat_istnieje == 0) {
+                    strcpy(sukces_wyslania.tekst, "Wiadomosc nie zostala wyslana, zostal podany nieistniejący temat");
+                } else {
+                    strcpy(sukces_wyslania.tekst, "Wiadomosc nie została wysłana, podany zly priorytet");
+                }
+            sukces_wyslania.type = wysylana_wiadomosc.id_wysylanego;
+            msgsnd(wysylanie_wiadomosci, &sukces_wyslania, sizeof(sukces_wyslania) - sizeof(long), 0);
     }
+
 
 
     if (odpowiedz.wybor == 5) {
         struct signal ban;
         struct wiadomosc wiadomosc_banowana;
-        msgrcv(do_banow, &ban, sizeof(ban) - sizeof(long), 5, 0);
+        msgrcv(do_banow, &ban, sizeof(ban) - sizeof(long), 1, 0);
+        printf("1\n");
         int id_banujacego = ban.odp; //ziomek ktory banuje
-        char string[1024];
+        char string[1024] = "";
         for (int i = 0; i < numUsers; i++) {
             if (id_banujacego != users[i].id) {
-                char nazwa[1028];
-
+                char nazwa[1028] = "";
                 strcpy(nazwa, users[i].name);
                 int id_zioma = users[i].id;
-                char id_string[12];
+                char id_string[12]="";
                 sprintf(id_string, "%d", id_zioma);
                 strcat(nazwa, " ");
                 strcat(nazwa, id_string);
@@ -286,14 +308,13 @@ int main(int argc, char *argv[]) {
                 //strcpy("", nazwa);
 
             }
-
-
         }
         strcpy(wiadomosc_banowana.tekst, string);
-        wiadomosc_banowana.type = 6;
+        wiadomosc_banowana.type = id_banujacego;
         msgsnd(do_banow, &wiadomosc_banowana, sizeof(wiadomosc_banowana) - sizeof(long), 0);
-        strcpy("", string);
-        msgrcv(do_banow, &ban, sizeof(ban) - sizeof(long), 6, 0);
+        strcpy(string, "");
+        msgrcv(do_banow, &ban, sizeof(ban) - sizeof(long), 1, 0);
+        printf("%d\n",ban.odp);
         int id_zbanowanego = ban.odp;
         for(int i=0; i < numUsers; i++) {
             if (users[i].id == id_banujacego) {
@@ -310,5 +331,8 @@ int main(int argc, char *argv[]) {
 
 
     }
+
+
+    //ipcs -q|tr -s ' ' '\t'|cut -f2 | sed '1,3d' | xargs -I {} ipcrm -q {}
     return 0;
 }
