@@ -15,7 +15,7 @@
 #define NAME_DL 128
 #define MAX_USER 10
 #define MAX_TEMAT 20
-#define MAX_ODBIERANE 1
+#define MAX_ODBIERANE 3
 
 struct temat {
     long type;
